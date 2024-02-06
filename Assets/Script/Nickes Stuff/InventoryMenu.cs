@@ -29,7 +29,7 @@ public class InventoryMenu : MonoBehaviour
     {
         //create the menu icon
         GameObject icon = Instantiate((GameObject)Resources.Load("Item"), ivMenuHolder.transform);
-        var im = icon.transform.GetChild(1);
+        var im = icon.transform.GetChild(0);
         Image image = im.GetComponent<Image>();
         image.sprite = item.icon;
     }

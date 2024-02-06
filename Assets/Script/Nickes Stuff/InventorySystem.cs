@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.Rendering;
 
 public class InventorySystem : MonoBehaviour
@@ -35,6 +36,11 @@ public class InventorySystem : MonoBehaviour
       */
       inventory.Add(refData);
       newItem?.Invoke();
+   }
+
+   public void DestroySelf()
+   {
+      Destroy(EventSystem.current.currentSelectedGameObject);
    }
 }
 

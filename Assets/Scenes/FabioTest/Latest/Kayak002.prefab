@@ -467,7 +467,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   whatIsGrappleable:
     serializedVersion: 2
-    m_Bits: 256
+    m_Bits: 0
   direction: 0.477
   hookOffset: {x: 0, y: 0.5, z: 0}
   hookDistance: 9999

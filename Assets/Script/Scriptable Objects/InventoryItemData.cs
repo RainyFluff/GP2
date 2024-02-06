@@ -16,5 +16,5 @@ public class InventoryItemData : ScriptableObject
     public string name;
     public ItemType type;
     public Sprite icon;
-    public GameObject item;
+    public Object item;
 }
