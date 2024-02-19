@@ -2,12 +2,14 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Video;
 
 public class GameManager : MonoBehaviour
 {
     public static GameManager instance;
     public gameState state;
-    public static event Action<gameState> onGameStateChanged; 
+    public static event Action<gameState> onGameStateChanged;
+    [SerializeField] private VideoPlayer loadingAnim;
     private void Awake()
     {
         if (instance == null)
@@ -33,6 +35,7 @@ public class GameManager : MonoBehaviour
         switch (newState)
         {
             case gameState.mainmenuState:
+                Time.timeScale = 1;
                 break;
             case gameState.settingsState:
                 break;
@@ -40,9 +43,15 @@ public class GameManager : MonoBehaviour
                 break;
             case gameState.customizationState:
                 break;
+            case gameState.playerCustomizationState:
+                break;
+            case gameState.kayakCustomizationState:
+                break;
             case gameState.storeState:
                 break;
             case gameState.levelSelectionState:
+                break;
+            case gameState.loadingState:
                 break;
             case gameState.readyState:
                 Time.timeScale = 0;
@@ -61,6 +70,7 @@ public class GameManager : MonoBehaviour
                 throw new ArgumentOutOfRangeException(nameof(newState), newState, null);
         }
         onGameStateChanged.Invoke(newState);
+        Application.targetFrameRate = Screen.currentResolution.refreshRate;
     }
     public enum gameState
     {
@@ -68,8 +78,11 @@ public class GameManager : MonoBehaviour
         settingsState,
         leaderboardState,
         customizationState,
+        playerCustomizationState,
+        kayakCustomizationState,
         storeState,
         levelSelectionState,
+        loadingState,
         readyState,
         racingState,
         pauseState,
@@ -79,7 +92,7 @@ public class GameManager : MonoBehaviour
 
     IEnumerator delayedFpsOptim()
     {
-        yield return new WaitForSeconds(0.1f);
+        yield return new WaitForSeconds(0.5f);
         Application.targetFrameRate = Screen.currentResolution.refreshRate;
     }
 }

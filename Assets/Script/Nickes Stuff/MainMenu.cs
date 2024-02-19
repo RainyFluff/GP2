@@ -1,18 +1,79 @@
-using System;
-using System.Collections;
+
 using System.Collections.Generic;
+using System.Linq;
+using GlobalStructs;
+using TMPro;
 using UnityEngine;
-using UnityEngine.Audio;
 using UnityEngine.SceneManagement;
+
 
 public class MainMenu : MonoBehaviour
 {
    //This script will mainly hold public voids
    //To use for the main menu buttons
+   private static SoundVolume soundVolume;
+   public int totalstars = new int();
+   public int totalcoins = new int();
+   public TextMeshProUGUI starsTxt;
+   public TextMeshProUGUI moneyTxt;
+
+   public void Initialize()
+   {
+      GameManager.onGameStateChanged += DisplayStars;
+   }
+
    public void StartGame(int index)
    {
-      SceneManager.LoadScene(index);
-      GameManager.instance.UpdateGameState(GameManager.gameState.readyState);
+      GameManager.instance.UpdateGameState(GameManager.gameState.loadingState);
+      SceneManager.LoadSceneAsync(index);
+      SceneManager.sceneLoaded += ReadyUp;
+   }
+
+   void ReadyUp(Scene scene, LoadSceneMode mode)
+   {
+      if (SceneManager.GetActiveScene() != SceneManager.GetSceneByBuildIndex(0))
+      {
+         GameManager.instance.UpdateGameState(GameManager.gameState.readyState);
+      }
+      else
+      {
+         GameManager.instance.UpdateGameState(GameManager.gameState.mainmenuState);
+      }
+   }
+
+   void DisplayStars(GameManager.gameState state)
+   {
+      totalstars = 0;
+      foreach (var level in  UserDataManager.upd.GetUserData().LevelData)
+      {
+         int temp = 0;
+         for (int i = 0; i < level.Value.Count; i++)
+         {
+            if (level.Value[i].Starts == StarsEarned.Three)
+            {
+               temp = 3;
+               break;
+            }
+            else if (level.Value[i].Starts == StarsEarned.Two)
+            {
+               temp = 2;
+               continue;
+            }
+            else if (level.Value[i].Starts == StarsEarned.One)
+            {
+               if (temp < 2)
+               {
+                  temp = 1;  
+               }
+               continue;
+            }
+            else if (level.Value[i].Starts == StarsEarned.Zero)
+            {
+               continue;
+            }
+         }
+         totalstars += temp;
+      }
    }
 
    public void LevelSelection()
@@ -45,26 +106,40 @@ public class MainMenu : MonoBehaviour
       GameManager.instance.UpdateGameState(GameManager.gameState.mainmenuState);
    }
 
-   public void SetSFXVolume(float volume)
+   public static void SetSFXVolume(float volume)
    {
-      AudioManager.instance.masterMixer.SetFloat("SFX", Mathf.Log10(volume)*20);
-      PlayerPrefs.SetFloat("sfxVolume", volume);
+      // AudioManager.instance.masterMixer.SetFloat("SFX", Mathf.Log10(volume)*20);
+      FAudioMan.instance.SFXVolume = volume;      
+      soundVolume.Sfx = volume;
+      UserDataManager.SetSavedVolume.Invoke(soundVolume);
    }
-   public void SetMasterVolume(float volume)
+   public static void SetMasterVolume(float volume)
    {
-      AudioManager.instance.masterMixer.SetFloat("master", Mathf.Log10(volume)*20);
-      PlayerPrefs.SetFloat("masterVolume", volume);
+      // AudioManager.instance.masterMixer.SetFloat("master", Mathf.Log10(volume)*20);
+      FAudioMan.instance.masterVolume = volume;
+      soundVolume.Master = volume;
+      UserDataManager.SetSavedVolume.Invoke(soundVolume);
    }
-   public void SetMusicVolume(float volume)
+   public static void SetMusicVolume(float volume)
    {
-      AudioManager.instance.masterMixer.SetFloat("music", Mathf.Log10(volume)*20);
-      PlayerPrefs.SetFloat("musicVolume", volume);
+      // AudioManager.instance.masterMixer.SetFloat("music", Mathf.Log10(volume)*20);
+      FAudioMan.instance.musicVolume = volume;
+      soundVolume.Music = volume;
+      UserDataManager.SetSavedVolume.Invoke(soundVolume);
    }
 
    private void Start()
    {
-      SetSFXVolume(PlayerPrefs.GetFloat("sfxVolume"));
-      SetMusicVolume(PlayerPrefs.GetFloat("musicVolume"));
-      SetMasterVolume(PlayerPrefs.GetFloat("masterVolume"));
+      soundVolume = UserDataManager.GetSavedVolume.Invoke();
+      SetSFXVolume(soundVolume.Sfx); 
+      SetMusicVolume(soundVolume.Music);
+      SetMasterVolume(soundVolume.Master);
+   }
+
+   private void Update()
+   {
+      totalcoins = UserDataManager.upd.GetUserData().CurrentCurrency;
+      starsTxt.text = totalstars.ToString();
+      moneyTxt.text = totalcoins.ToString();
    }
 }

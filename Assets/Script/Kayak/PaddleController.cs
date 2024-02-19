@@ -2,95 +2,155 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Serialization;
 
 public class PaddleController : MonoBehaviour, IKayakEntity
 {
-    [Header("Paddle")]
-    [SerializeField] private float paddleStrength = 10f;
-    [SerializeField] private float rotationStrength = 5f;
-    [SerializeField] private float lateralStrength = 2f;    
+    [System.Flags]
+    public enum EPaddleState
+    {
+        NONE = 0,
+        LEFT_PADDLE = 1 << 1,
+        RIGHT_PADDLE = 1 << 2
+    }
     
-    [Header("Speed")]
-    [SerializeField] private float maxHorizontalVelocity = 5;
+    [Header("Paddle")]
+    [SerializeField] public float paddleStrength = 10f;
+    [SerializeField] public float rotationStrength = 5f;
+    [SerializeField] private float lateralStrength = 2f; 
+    [SerializeField] private float paddleForceApplicationTimer = 0.1f;
 
-    public bool leftPaddleActive = false;
-    public bool rightPaddleActive = false;
+    [SerializeField] private AnimationCurve paddleStrengthDecay = AnimationCurve.Constant(0, 1, 1);
+    
+    public EPaddleState paddleState;
+
+    public Animator leftCharacterPaddleAnimator;
+    public Animator rightCharacterPaddleAnimator;
 
     private Kayak kayak;
+    public float currentRotationStrength;    
+
+    public float leftPaddleTimerInSeconds = -1;
+    public float rightPaddleTimerInSeconds = -1;
     
-    void Start() {
-        Initialize(null);        
-    }
-
-    void Update() {
-        if (GetComponent<Kayak>() == null) {
-            OnUpdate(Time.deltaTime);
+    void OnCollisionExit(Collision collisionInfo) {
+        if (collisionInfo.gameObject.tag == "Wall") {
+            currentRotationStrength = rotationStrength;
         }
     }
 
-    void FixedUpdate() {
-        if (GetComponent<Kayak>() == null) {
-            OnFixedUpdate(Time.fixedDeltaTime);
-        }
+    void OnCollisionStay(Collision collisionInfo)
+    {
+        if (collisionInfo.gameObject.tag == "Wall") {
+            currentRotationStrength = rotationStrength * 2;
+        }        
     }
 
     public void Initialize(Kayak kayak)
     {
         if (kayak != null) {
             this.kayak = kayak as Kayak;
-        } else {
-            var rb = GetComponent<Rigidbody>();
-        }        
+            currentRotationStrength = rotationStrength;
+        }
+
+        paddleState = EPaddleState.NONE;
+        leftPaddleTimerInSeconds = -1;
+        rightPaddleTimerInSeconds = -1;
+
+        var left = transform.Find("Mesh/Kayak_low/CharacterLeft");
+        var right = transform.Find("Mesh/Kayak_low/CharacterRight");
+
+        if (left != null) {
+            leftCharacterPaddleAnimator = left.GetComponent<Animator>();
+        }
+        if (right != null) {
+            rightCharacterPaddleAnimator = right.GetComponent<Animator>();
+        }
     }
 
     public void OnUpdate(float dt)
     {
         // Check for key presses
-        if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.J))
+        if (Input.GetKeyDown(KeyCode.A))
         {
-            leftPaddleActive = true;
+            paddleState |= EPaddleState.LEFT_PADDLE;
+            leftPaddleTimerInSeconds = 0;
+            leftCharacterPaddleAnimator?.SetTrigger("PaddleLeft");
         }
-        if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.L))
+        if (Input.GetKeyDown(KeyCode.J))
         {
-            rightPaddleActive = true;
+            paddleState |= EPaddleState.LEFT_PADDLE;
+            leftPaddleTimerInSeconds = 0;
+            rightCharacterPaddleAnimator?.SetTrigger("PaddleLeft");
         }
 
+        if (Input.GetKeyDown(KeyCode.D))
+        {
+            paddleState |= EPaddleState.RIGHT_PADDLE;
+            rightPaddleTimerInSeconds = 0;
+            leftCharacterPaddleAnimator?.SetTrigger("PaddleRight");
+        }
+        if (Input.GetKeyDown(KeyCode.L))
+        {
+            paddleState |= EPaddleState.RIGHT_PADDLE;
+            rightPaddleTimerInSeconds = 0;
+            rightCharacterPaddleAnimator?.SetTrigger("PaddleRight");
+        }
+
+        #if USE_TAP_AND_HOLD
         if (Input.GetKeyUp(KeyCode.A) || Input.GetKeyUp(KeyCode.J)) {
             leftPaddleActive = false;
         }
         if (Input.GetKeyUp(KeyCode.D) || Input.GetKeyUp(KeyCode.L))
         {
             rightPaddleActive = false;
-        }        
+        }
+        #else
+        if (leftPaddleTimerInSeconds >= 0)
+        {
+            if (leftPaddleTimerInSeconds >= 0 && leftPaddleTimerInSeconds < paddleForceApplicationTimer) {
+                leftPaddleTimerInSeconds += dt;
+            } else
+            {
+                paddleState &= ~EPaddleState.LEFT_PADDLE;
+                leftPaddleTimerInSeconds = -1;            
+            }
+        }
+
+        if (rightPaddleTimerInSeconds >= 0)
+        {
+            if (rightPaddleTimerInSeconds >= 0 && rightPaddleTimerInSeconds < paddleForceApplicationTimer) {
+                rightPaddleTimerInSeconds += dt;
+            } else
+            {
+                paddleState &= ~EPaddleState.RIGHT_PADDLE;
+                rightPaddleTimerInSeconds = -1;            
+            } 
+        }
+        #endif   
     }
 
     public void OnFixedUpdate(float dt)
     {
         // Apply forces based on paddle input
-        if (leftPaddleActive)
+        if (paddleState.HasFlag(EPaddleState.LEFT_PADDLE))
         {
-            ApplyPaddleForce(transform.forward * paddleStrength + transform.right * lateralStrength, -rotationStrength);
-            // leftPaddleActive = false;
+            ApplyPaddleForce(transform.forward * paddleStrength + transform.right * lateralStrength, dt, -currentRotationStrength, leftPaddleTimerInSeconds);
         }
-        if (rightPaddleActive)
+        if (paddleState.HasFlag(EPaddleState.RIGHT_PADDLE))
         {
-            ApplyPaddleForce(transform.forward * paddleStrength - transform.right * lateralStrength, rotationStrength);
-            // rightPaddleActive = false;
+            ApplyPaddleForce(transform.forward * paddleStrength - transform.right * lateralStrength, dt, currentRotationStrength, rightPaddleTimerInSeconds);
         }
     }
 
-    private void ApplyPaddleForce(Vector3 force, float rotation)
+    private void ApplyPaddleForce(Vector3 force, float dt, float rotation, float currentPaddleTime)
     {
-        if (kayak != null) {
-            if (kayak.rb.velocity.magnitude < maxHorizontalVelocity) {
-                kayak.rb.AddForce(force, ForceMode.Force);                
-            }
-            kayak.rb.AddTorque(new Vector3(0f, rotation, 0f), ForceMode.Force);
+        if (kayak != null)
+        {
+            kayak.AddForce(force.normalized, force.magnitude * paddleStrengthDecay.Evaluate(Mathf.InverseLerp(paddleForceApplicationTimer, 0, currentPaddleTime)), dt, ForceMode.Force);                            
+            kayak.AddTorque(new Vector3(0f, rotation * paddleStrengthDecay.Evaluate(Mathf.InverseLerp(paddleForceApplicationTimer, 0, currentPaddleTime)), 0f), dt, ForceMode.Force);
         } else {
-            if (GetComponent<Rigidbody>().velocity.magnitude < maxHorizontalVelocity) {
-                GetComponent<Rigidbody>().AddForce(force, ForceMode.Force);
-            }            
-            GetComponent<Rigidbody>().AddTorque(new Vector3(0f, rotation, 0f), ForceMode.Force);
+            Debug.LogError("Kayak script is missing. Please add that script in");            
         }
     }     
 

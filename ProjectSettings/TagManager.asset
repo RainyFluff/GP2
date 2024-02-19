@@ -3,18 +3,25 @@
 --- !u!78 &1
 TagManager:
   serializedVersion: 2
-  tags: []
+  tags:
+  - Obstacle
+  - Water Current
+  - boostarea
+  - LeaderBoard
+  - BoostAreaTest
+  - Wall
+  - COIN
   layers:
   - Default
   - TransparentFX
   - Ignore Raycast
-  - 
+  - NoCollision
   - Water
   - UI
-  - 
-  - 
-  - 
-  - 
+  - Boat
+  - Obstacle
+  - Hookable
+  - LampLayer
   - 
   - 
   - 
